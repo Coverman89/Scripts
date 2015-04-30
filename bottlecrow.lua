@@ -1,3 +1,4 @@
+--<< Bottle_Crow - Script By Coverman 0.2.1 >>
 require("libs.ScriptConfig")
 require("libs.Utils")
 
@@ -25,6 +26,8 @@ local zerocd = 0
 local fez = 0
 
 function Tick()
+	if client.console or not SleepCheck() then return end
+
 	if galinha then
 		if galinha:GetAbility(6).state == LuaEntityAbility.STATE_READY then
 			zerocd = 1
@@ -38,9 +41,11 @@ function Tick()
 		galinha:CastAbility(galinha:GetAbility(6),false)
 		fez = 1
 	end
-	if client.console or not SleepCheck() then return end
 
-	if galinha and lugar and GetDistance2D(galinha,lugar) < 290 and fase == 1 then
+	
+
+	-- FASE 1 (PEGAR ITEM)
+	if galinha and lugar and GetDistance2D(galinha,lugar) < 290 and fase == 1 and me.alive then 
 		fase = 2 -- CHEGOU AO LUGAR -> pegar
 		texto2.text = "Stage: "..fase
 	end
@@ -49,6 +54,7 @@ function Tick()
 		galinha:Move(lugar,false)
 	end
 	
+	-- FASE 2
 	if fase == 2 then
 		local itemsChao = entityList:GetEntities({type=LuaEntity.TYPE_ITEM_PHYSICAL})
 		for i,item in ipairs(itemsChao) do
@@ -62,21 +68,8 @@ function Tick()
 		end
 	end
 
-	if fase == 3 then -- Fase de ir base e devolver
-		local abottle = galinha:GetItem(1)
-		if abottle and abottle.name == "item_bottle" then
-			if abottle.charges < 3 then 
-				fase = 4 -- voltando pra base
-				texto2.text = "Stage: "..fase
-			else -- se tiver com as 3 charges, te devolve e vai pra base
-				galinha:CastAbility(galinha:GetAbility(5),true)
-				fase = 0
-				texto2.text = "Stage: "..fase
-			end		
-		end
-	end
-
-	if fase == 4 then -- Fase VOLTANDO BASE
+	-- FASE 3
+	if fase == 3 then 
 		if fazendo == 0 then
 			galinha:CastAbility(galinha:GetAbility(1),false) -- vai pra base
 			fazendo = 1
@@ -87,15 +80,14 @@ function Tick()
 		local abottle = galinha:GetItem(1)
 		if abottle and abottle.name == "item_bottle" then
 			if abottle.charges == 3 then
-				fase = 5
+				fase = 4
 				fazendo = 0
 				texto2.text = "Stage: "..fase
 			end
 		end
-
 	end
 
-	if fase == 5 then -- Fase devolver
+	if fase == 4 then -- 
 		if fazendo == 0 then 
 			galinha:CastAbility(galinha:GetAbility(5),false)
 			fazendo = 1
@@ -109,40 +101,41 @@ function Tick()
 			fazendo = 0
 		end
 	end
-
 	Sleep(200)
 end
 
 function Key(msg,code)
+	
 	if client.chat or msg ~= KEY_DOWN then
 		return
 	end
-	if code == config.ativar and galinha ~= nil then
+	local bottle = me:FindItem("item_bottle")
+
+	--FASE 0 (DROPA ITEM > GALINHA VAI ATE LOCAL)
+	if code == config.ativar and galinha ~= nil and bottle and bottle.charges < 3 then
 		if fase == 0 then
 			fase = 1 -- ir ate local
 			texto2.text = "Stage: "..fase
 			lugar = me.position
-			local bottle = me:FindItem("item_bottle")
 			player:DropItem(bottle,me.position,false)
 			galinha:Move(lugar,false)
 		end
 	end
+
+	-- Tentou ativar sem courier
 	if code == config.ativar and galinha == nil then
 		texto2.text = "Please, choose a courier first"
 	end
 
+	-- Seleção de courier
 	if code == config.hotkeygalinha and player.selection[1].name == "npc_dota_courier" then
 		galinha = player.selection[1]
 		texto2.text = "Courier selected with sucess "..galinha.name
 	end
+
+	-- ERRO, SELECIONOU UNIDADE QUE NAO É COURIER
 	if code == config.hotkeygalinha and player.selection[1].name ~= "npc_dota_courier" then
 		texto2.text = "Please, select a courier type."
-	end
-
-	if code == 85 then
-		fase = 0
-		texto2.text = "Stage: "..fase
-		funcionando = 0
 	end
 
 	texto.text = "No bugs. Number of keys pressed "..count..". Last key pressed "..tostring(code)
@@ -172,6 +165,13 @@ function GameClose()
 		fase = 0
 		player = nil
 		me = nil
+		galinha = nil
+		lugar = nil
+		count = 0 -- variavel de teste de bugs
+		fase = 0 -- 0 desligado, 1 buscando, 2 pegando, 3 entregando
+		fazendo = 0 -- conserta bug da fase 4
+		zerocd = 0
+		fez = 0
 	end
 end
 
